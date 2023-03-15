@@ -126,6 +126,8 @@ def draw_event(
         Output("alert-geometry", "is_open"),
         Output("alert-geometry", "children"),
         Output("unique-url", "children"),
+        Output("use-spill-id", "value"),
+        Output("use-spill-id", "disabled")
     ],
     [
         Input("event-id", "data"),
@@ -133,6 +135,7 @@ def draw_event(
         Input("geometry-state", "data"),
         Input("plot-tracks-state", "data"),
         Input("plot-opids-state", "data"),
+        Input("use-spill-id", "value"),
     ],
     [
         State("event-display", "figure"),
@@ -144,11 +147,17 @@ def update_output(
     geometry,
     do_plot_tracks,
     do_plot_opids,
+    use_spill_id,
     figure,
 ):
     """Update 3D event display end event id"""
 
-    event_dividers,  light_dividers = get_event_dividers(filename)
+    spill_id_disabled = False
+    if not has_spill_id(filename):
+        spill_id_disabled = True
+        use_spill_id = False
+
+    event_dividers,  light_dividers = get_event_dividers(filename, use_spill_id)
     fig = go.Figure(figure)
 
     if event_dividers is None:
@@ -169,10 +178,10 @@ def update_output(
         )
     except IndexError as err:
         print("IndexError", err)
-        return fig, {"display": "none"}, True, no_update, no_update
+        return fig, {"display": "none"}, True, no_update, no_update, no_update, no_update
     except KeyError as err:
         print("KeyError", err)
-        return fig, {"display": "none"}, True, "Select a geometry first", no_update
+        return fig, {"display": "none"}, True, "Select a geometry first", no_update, no_update, no_update
 
     url_filename = filename.replace(DOCKER_MOUNTED_FOLDER, "")
     return (
@@ -181,7 +190,15 @@ def update_output(
         False,
         no_update,
         f"https://larnddisplay.lbl.gov/{url_filename}?geom={geometry}#{event_id}",
+        use_spill_id,
+        spill_id_disabled
     )
+
+
+@lru_cache
+def has_spill_id(filename):
+    with h5py.File(filename) as datalog:
+        return 'tracks' in datalog.keys() and 'spillID' in datalog['tracks'].dtype.names
 
 
 @app.callback(Output("light-waveform", "style"), Input("event-id", "data"))
@@ -197,11 +214,12 @@ def reset_light(_):
         State("event-display", "figure"),
         State("event-id", "data"),
         State("filename", "data"),
+        State("use-spill-id", "value")
     ],
 )
-def light_waveform(click_data, _, event_id, filename):
+def light_waveform(click_data, _, event_id, filename, use_spill_id):
     """Plot the light waveform for the selected event on the clicked optical detector"""
-    _event_dividers, light_dividers = get_event_dividers(filename)
+    _event_dividers, light_dividers = get_event_dividers(filename, use_spill_id)
     if (
         click_data
         and "id" in click_data["points"][0]
@@ -280,11 +298,12 @@ def light_waveform(click_data, _, event_id, filename):
         Input("event-id", "data"),
         Input("filename", "data"),
         Input("geometry-detector", "value"),
+        Input("use-spill-id", "value")
     ],
 )
-def adc_histogram(event_id, filename, geometry):
+def adc_histogram(event_id, filename, geometry, use_spill_id):
     """Plot histogram of the adc counts for each drift volume"""
-    event_dividers, _light_dividers = get_event_dividers(filename)
+    event_dividers, _light_dividers = get_event_dividers(filename, use_spill_id)
     if event_dividers is not None and geometry is not None:
         start_packet = event_dividers[event_id]
         end_packet = event_dividers[event_id + 1]
@@ -407,18 +426,19 @@ def update_filename(modified_timestamp, filename):
 @app.callback(
     Output("total-events", "children"),
     Input("filename", "modified_timestamp"),
-    Input("filename", "data")
+    Input("filename", "data"),
+    Input("use-spill-id", "value")
 )
-def update_total_events(modified_timestamp, filename):
+def update_total_events(modified_timestamp, filename, use_spill_id):
     """Update the total number of events text"""
-    event_dividers, _light_dividers = get_event_dividers(filename)
+    event_dividers, _light_dividers = get_event_dividers(filename, use_spill_id)
     if modified_timestamp is None:
         raise PreventUpdate
 
     if len(event_dividers) < 2:
         total_events = 0
     else:
-        total_events = len(event_dividers) - 2
+        total_events = len(event_dividers) - 1
 
     return f"/ {total_events}"
 
@@ -432,16 +452,17 @@ def update_total_events(modified_timestamp, filename):
         Output("input-evid", "value"),
     ],
     [
-        State("filename", "data")
+        State("filename", "data"),
+        State("use-spill-id", "value")
     ]
 )
-def update_event_id_click(input_evid, filename):
+def update_event_id_click(input_evid, filename, use_spill_id):
     try:
         event_id = int(input_evid)
     except TypeError:
         return no_update, no_update
 
-    event_dividers, _light_dividers = get_event_dividers(filename)
+    event_dividers, _light_dividers = get_event_dividers(filename, use_spill_id)
     if event_dividers is not None:
         if event_id >= len(event_dividers) - 1:
             event_id = len(event_dividers) - 2
@@ -479,8 +500,8 @@ def is_cool_event(packets, threshold):
     return total_adc > threshold
 
 
-def find_cool_event(event_id, filename, threshold, direction):
-    event_dividers, _light_dividers = get_event_dividers(filename)
+def find_cool_event(event_id, filename, threshold, direction, use_spill_id):
+    event_dividers, _light_dividers = get_event_dividers(filename, use_spill_id)
     if event_dividers is not None:
         with h5py.File(filename, "r") as datalog:
             packets = datalog["packets"]
@@ -499,10 +520,11 @@ def find_cool_event(event_id, filename, threshold, direction):
     Input("prev-cool", "n_clicks"),
     State("event-id", "data"),
     State("filename", "data"),
-    State("coolness-threshold", "data")
+    State("coolness-threshold", "data"),
+    State("use-spill-id", "value"),
 )
-def prev_cool_click(_n_clicks, event_id, filename, threshold):
-    return find_cool_event(event_id, filename, threshold, -1)
+def prev_cool_click(_n_clicks, event_id, filename, threshold, use_spill_id):
+    return find_cool_event(event_id, filename, threshold, -1, use_spill_id)
 
 
 @app.callback(
@@ -510,28 +532,31 @@ def prev_cool_click(_n_clicks, event_id, filename, threshold):
     Input("next-cool", "n_clicks"),
     State("event-id", "data"),
     State("filename", "data"),
-    State("coolness-threshold", "data")
+    State("coolness-threshold", "data"),
+    State("use-spill-id", "value"),
 )
-def next_cool_click(_n_clicks, event_id, filename, threshold):
-    return find_cool_event(event_id, filename, threshold, 1)
+def next_cool_click(_n_clicks, event_id, filename, threshold, use_spill_id):
+    return find_cool_event(event_id, filename, threshold, 1, use_spill_id)
 
 @app.callback(
     Output("input-evid", "value"),
     Input("prev-event", "n_clicks"),
     State("event-id", "data"),
-    State("filename", "data")
+    State("filename", "data"),
+    State("use-spill-id", "value")
 )
-def prev_event(_n_clicks, event_id, filename):
-    return find_cool_event(event_id, filename, 0, -1)
+def prev_event(_n_clicks, event_id, filename, use_spill_id):
+    return find_cool_event(event_id, filename, 0, -1, use_spill_id)
 
 @app.callback(
     Output("input-evid", "value"),
     Input("next-event", "n_clicks"),
     State("event-id", "data"),
-    State("filename", "data")
+    State("filename", "data"),
+    State("use-spill-id", "value"),
 )
-def next_event(_n_clicks, event_id, filename):
-    return find_cool_event(event_id, filename, 0, 1)
+def next_event(_n_clicks, event_id, filename, use_spill_id):
+    return find_cool_event(event_id, filename, 0, 1, use_spill_id)
 
 @app.callback(
     Output("coolness-threshold", "data"),
@@ -619,8 +644,11 @@ def select_file(input_filename, event_id, filepath):
 
 
 @lru_cache(maxsize=64)
-def get_event_dividers(path: str):
+def get_event_dividers(path: str, use_spill_id: bool):
     with h5py.File(path) as datalog:
+        if use_spill_id and has_spill_id(path):
+            return get_spill_dividers(datalog)
+
         packets = datalog["packets"]
         trigger_mask = packets["packet_type"] == 7
         if trigger_mask.any():
@@ -649,6 +677,26 @@ def get_event_dividers(path: str):
 
             return ic, il
 
+
+def get_spill_dividers(datalog):
+    trackIDs = datalog['mc_packets_assn']['track_ids'][:, 0]
+    pkt2spill = np.ma.array(datalog['tracks']['spillID'][trackIDs],
+                            mask=(trackIDs == -1))
+    # trackIDs = np.ma.array(trackIDs, mask=(trackIDs == -1))
+
+    spillIDs = np.unique(datalog['tracks']['spillID'][trackIDs])
+    def first_idx(spillID):
+        return np.nonzero(pkt2spill == spillID)[0][0]
+    ic = np.concatenate([[0],
+                         [first_idx(spillID) for spillID in spillIDs[1:]],
+                         [len(datalog['packets'])]])
+    ## TODO: Calculate light dividers
+    # _ts, il, _ic = np.intersect1d(
+    #     datalog['light_trig']['ts_sync'],
+    #     datalogs['packets'][ic]
+    # )
+    il = np.array([])
+    return ic, il
 
 
 @app.callback(
@@ -891,6 +939,7 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
                                         style={"margin-left": "5em"},
                                     ),
                                     daq.ToggleSwitch(
+                                        id="use-spill-id",
                                         label="Event dividers",
                                         labelPosition="bottom",
                                         style={"display": "inline-block"},
