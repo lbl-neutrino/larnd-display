@@ -886,6 +886,19 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
                                             "height": "2.5em",
                                         },
                                     ),
+                                    html.Span(
+                                        "Light triggers",
+                                        style={"margin-left": "5em"},
+                                    ),
+                                    daq.ToggleSwitch(
+                                        label="Event dividers",
+                                        labelPosition="bottom",
+                                        style={"display": "inline-block"},
+                                        value=False,
+                                    ),
+                                    html.Span(
+                                        "Spill IDs",
+                                    )
                                 ],
                                 style={"margin": "0"},
                             ),
