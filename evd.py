@@ -769,13 +769,13 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
                 backgroundcolor="white",
                 showspikes=False,
                 showgrid=False,
-                title="x [mm]",
+                title="z [mm]",
             ),
             yaxis=dict(
                 backgroundcolor="white",
                 showgrid=False,
                 showspikes=False,
-                title="z [mm]",
+                title="x [mm]",
             ),
             zaxis=dict(
                 backgroundcolor="white",

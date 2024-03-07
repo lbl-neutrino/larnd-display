@@ -248,8 +248,8 @@ def plot_tracks(tracks, track_ids, n_events):
         if track['dx'] < 1:
             continue
         html_name = Particle.from_pdgid(track['pdgId']).html_name.replace('&pi;','&#960;').replace('&gamma;','&#947;')
-        line = go.Scatter3d(x=np.linspace(track['x_start'], track['x_end'], 5),
-                            y=np.linspace(track['z_start'], track['z_end'], 5),
+        line = go.Scatter3d(x=np.linspace(track['z_start'], track['z_end'], 5),
+                            y=np.linspace(track['x_start'], track['x_end'], 5),
                             z=np.linspace(track['y_start'], track['y_end'], 5),
                             mode='lines',
                             hoverinfo='text',
