@@ -744,6 +744,12 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
     twobytwo_detector_properties = (
         larndsim_dir + "/larndsim/detector_properties/2x2.yaml"
     )
+    twobytwo_bomb_detector_properties = (
+        larndsim_dir + "/larndsim/detector_properties/2x2_bomb_det_props.yaml"
+    )
+    ndlar_detector_properties = (
+        larndsim_dir + '/larndsim/detector_properties/ndlar-module.yaml'
+    )
     tile44_layout = (
         larndsim_dir + "/larndsim/pixel_layouts/multi_tile_layout-2.4.16.yaml"
     )
@@ -753,6 +759,8 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
         module0_detector_properties, tile44_layout, sim_props
     )
     GEOMETRIES["2x2"] = DetectorGeometry(twobytwo_detector_properties, tile44_layout, sim_props)
+    GEOMETRIES["2x2_bomb"] = DetectorGeometry(twobytwo_bomb_detector_properties, tile44_layout, sim_props)
+    GEOMETRIES["ndlar"] = DetectorGeometry(ndlar_detector_properties, tile44_layout, sim_props)
 
     fig = go.Figure()
     camera = dict(
@@ -869,7 +877,7 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
                                         id="geometry-detector",
                                         options=[
                                             {"label": x, "value": x}
-                                            for x in ["Module-0", "2x2"]
+                                            for x in ["Module-0", "2x2", "2x2_bomb", "ndlar"]
                                         ],
                                         value="Module-0",
                                         style={
