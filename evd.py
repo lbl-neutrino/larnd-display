@@ -747,11 +747,12 @@ def run_display(larndsim_dir, host="127.0.0.1", port=5000, filepath="."):
     tile44_layout = (
         larndsim_dir + "/larndsim/pixel_layouts/multi_tile_layout-2.3.16.yaml"
     )
+    sim_props = larndsim_dir + '/larndsim/simulation_properties/2x2_NuMI_sim.yaml'
 
     GEOMETRIES["Module-0"] = DetectorGeometry(
-        module0_detector_properties, tile44_layout
+        module0_detector_properties, tile44_layout, sim_props
     )
-    GEOMETRIES["2x2"] = DetectorGeometry(twobytwo_detector_properties, tile44_layout)
+    GEOMETRIES["2x2"] = DetectorGeometry(twobytwo_detector_properties, tile44_layout, sim_props)
 
     fig = go.Figure()
     camera = dict(

@@ -274,7 +274,7 @@ def plot_tracks(tracks, track_ids, n_events):
 class DetectorGeometry():
     """Class describing the geometry of the Detector"""
 
-    def __init__(self, detector_properties, pixel_layout):
+    def __init__(self, detector_properties, pixel_layout, sim_props):
         self.detector_properties = detector_properties
         self.pixel_layout = pixel_layout
         self.geometry = {}
@@ -283,7 +283,7 @@ class DetectorGeometry():
         self.tile_orientations = None
         self.tpc_offsets = None
         self.load_geometry()
-        consts.load_properties(detector_properties,pixel_layout)
+        consts.load_properties(detector_properties,pixel_layout,sim_props)
         self.tile_map = detector.TILE_MAP
         self.module_to_io_groups = detector.MODULE_TO_IO_GROUPS
         self.tpc_borders = detector.TPC_BORDERS
